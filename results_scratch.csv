@@ -1,0 +1,5 @@
+experiment,MAE,RMSE,MAPE %,R2,seconds
+"small, adam 0.003",2.871,3.762,0.633,0.9512,5
+"small, adam 0.01",2.964,3.94,0.653,0.9465,5
+"bigger, adam 0.01",2.986,3.935,0.658,0.9466,7
+"small, momentum 0.003",3.086,3.972,0.681,0.9456,4

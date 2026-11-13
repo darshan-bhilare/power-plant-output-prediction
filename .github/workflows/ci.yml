@@ -1,0 +1,36 @@
+name: tests-and-docker
+
+on: [push, workflow_dispatch]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install -r requirements.txt pytest httpx
+      - run: python -m pytest -v
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker build -t power-plant-api .
+      - name: Start the container
+        run: docker run -d --name api -p 8000:8000 power-plant-api
+      - name: Wait until the service answers /health
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health && exit 0
+            sleep 2
+          done
+          docker logs api
+          exit 1
+      - name: Ask it for a prediction
+        run: |
+          curl -sf -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            -d '{"AT":14.96,"V":41.76,"AP":1024.07,"RH":73.17}'

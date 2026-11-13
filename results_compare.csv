@@ -1,0 +1,4 @@
+model,MAE,RMSE,MAPE %,R2,seconds
+From scratch (NumPy),2.871,3.807,0.633,0.95,14
+PyTorch,2.903,3.818,0.639,0.9498,33
+scikit-learn MLP,2.974,3.868,0.657,0.9484,12
