@@ -1,4 +1,4 @@
-# power-plant-output-prediction# Power Plant Output Prediction
+# Power Plant Output Prediction
 
 [![CI](https://github.com/darshan-bhilare/power-plant-output-prediction/actions/workflows/ci.yml/badge.svg)](https://github.com/darshan-bhilare/power-plant-output-prediction/actions/workflows/ci.yml)
 
