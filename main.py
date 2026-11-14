@@ -1,14 +1,15 @@
+import os
 import sqlite3
 from datetime import datetime, timezone
 
-import os
 import joblib
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from preprocess import preprocess_features
+
 DB_PATH = os.environ.get("DB_PATH", "requests.db")
-FEATURES = ["AT", "V", "AP", "RH"]
 
 # Load the saved pipeline once, when the service starts
 model = joblib.load("models/model.joblib")
@@ -24,6 +25,7 @@ class PlantInput(BaseModel):
     V: float = Field(..., ge=0, le=150, description="Exhaust vacuum (cm Hg)")
     AP: float = Field(..., ge=800, le=1100, description="Air pressure (millibar)")
     RH: float = Field(..., ge=0, le=105, description="Relative humidity (%)")
+
 
 def init_db():
     with sqlite3.connect(DB_PATH) as conn:
@@ -47,7 +49,11 @@ def health():
 
 @app.post("/predict")
 def predict(item: PlantInput):
-    row = pd.DataFrame([item.model_dump()], columns=FEATURES)
+    try:
+        row = preprocess_features(pd.DataFrame([item.model_dump()]))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
     prediction = float(model.predict(row)[0])
 
     # Log every request so we can check for drift later
