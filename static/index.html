@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Power plant output prediction</title>
+<style>
+:root{color-scheme:light dark;--bg:#eef1f4;--panel:#fff;--ink:#14213d;--muted:#4e5b73;--line:#cfd6e0;--accent:#0b6e8a;--on-accent:#fff;--track:#d9e0ea;--warn-bg:#fff3d6;--warn-ink:#6b4400;--warn-line:#e0b04a;--ok:#145c3a}
+@media(prefers-color-scheme:dark){:root{--bg:#10161f;--panel:#18212e;--ink:#e8edf5;--muted:#a7b3c6;--line:#2d3a4d;--accent:#5fc3df;--on-accent:#0b1620;--track:#2a3648;--warn-bg:#3a2d10;--warn-ink:#f2d594;--warn-line:#8a6a22;--ok:#7bd6a4}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,"Segoe UI",Roboto,Arial,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:32px 20px 56px}
+h1{font-size:clamp(1.7rem,3.5vw,2.4rem);line-height:1.15;margin:0 0 12px;letter-spacing:-.01em}
+h2{font-size:1.15rem;margin:0 0 10px}
+p{margin:0 0 10px}
+.lede{max-width:62ch;color:var(--muted);font-size:1.05rem;margin-bottom:26px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px}
+.grid{display:grid;gap:20px;grid-template-areas:"result" "controls"}
+@media(min-width:860px){.grid{grid-template-columns:1.25fr 1fr;grid-template-areas:"controls result";align-items:start}.result{position:sticky;top:20px}}
+.controls{grid-area:controls}.result{grid-area:result}
+.examples{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:20px}
+.examples span{color:var(--muted);margin-right:4px}
+button{font:inherit;cursor:pointer}
+.chip{background:none;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:.35rem .8rem}
+.chip:hover{border-color:var(--accent)}
+.btn{background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:.6rem 1.1rem;font-weight:600}
+.btn:disabled{opacity:.6;cursor:default}
+.field{margin-bottom:22px}
+.field-head{display:flex;justify-content:space-between;align-items:baseline;font-weight:600}
+.field-head .unit{color:var(--muted);font-weight:400}
+.row{display:flex;gap:14px;align-items:center;margin:6px 0 4px}
+input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
+input[type=number]{width:6.5rem;text-align:right;font:inherit;font-variant-numeric:tabular-nums;padding:.4rem .6rem;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.hint{margin:0;color:var(--muted);font-size:.93rem}
+.train{margin:2px 0 0;color:var(--muted);font-size:.85rem}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.big{font-size:clamp(3rem,8vw,4.5rem);font-weight:700;line-height:1.05;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:6px 0 14px}
+.big .mw{font-size:1.4rem;font-weight:500;color:var(--muted);letter-spacing:0}
+.track{height:12px;background:var(--track);border-radius:6px;overflow:hidden}
+.fill{height:100%;width:0;background:var(--accent);transition:width .15s}
+@media(prefers-reduced-motion:reduce){.fill{transition:none}}
+.scale{display:flex;justify-content:space-between;color:var(--muted);font-size:.85rem;margin:4px 0 14px}
+.note{border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:.95rem}
+.note.ok{color:var(--ok);border:1px solid var(--line)}
+.note.warn{background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line)}
+.small{color:var(--muted);font-size:.9rem}
+details.panel{margin-top:20px}
+summary{cursor:pointer;font-weight:600}
+details p{margin-top:10px;max-width:70ch}
+.monitor{margin-top:20px}
+.monitor p{max-width:70ch}
+table{border-collapse:collapse;margin-top:14px;width:100%;max-width:520px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+td.diff{color:var(--warn-ink);font-weight:600}
+@media(prefers-color-scheme:dark){td.diff{color:var(--warn-ink)}}
+footer{margin-top:28px;color:var(--muted);font-size:.9rem}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main class="wrap">
+<h1>Power plant output prediction</h1>
+<p class="lede">A combined cycle power plant produces different amounts of electricity depending on the weather. Move the sliders to set the conditions and see what output the model predicts.</p>
+<noscript><p class="note warn">This page needs JavaScript to show predictions.</p></noscript>
+
+<div class="grid">
+  <section class="panel controls" aria-labelledby="c-h">
+    <h2 id="c-h">Set the conditions</h2>
+    <div class="examples" id="examples"></div>
+    <div id="fields"></div>
+  </section>
+
+  <section class="panel result" aria-labelledby="r-h">
+    <h2 id="r-h">Predicted output</h2>
+    <p class="big" aria-live="polite"><span id="pred">…</span> <span class="mw">MW</span></p>
+    <div class="track" aria-hidden="true"><div class="fill" id="fill"></div></div>
+    <div class="scale" aria-hidden="true"><span>420</span><span>500 MW</span></div>
+    <p class="note ok" id="note" role="status"></p>
+    <p class="small">On readings it had never seen, the model was off by about 2.3 MW on average. In this data the plant’s output runs from about 420 to 496 MW.</p>
+  </section>
+</div>
+
+<details class="panel">
+  <summary>How this works</summary>
+  <p>The model learned from <span id="rows">thousands of</span> hourly readings of one combined cycle power plant. Each reading has four measurements of the surroundings and the electricity the plant produced at that time.</p>
+  <p>It is a random forest: many decision trees that vote on the answer. A straight-line model was off by about 3.6 MW on average, a neural network built from scratch for this project by about 2.9 MW, and the random forest by about 2.3 MW. That is why the random forest runs this service.</p>
+  <p>The model only knows this one plant and the conditions in its training data. Outside those conditions, its answer is closer to a guess, which is what the warning on the result is for.</p>
+</details>
+
+<section class="panel monitor" aria-labelledby="m-h">
+  <h2 id="m-h">Is the incoming data still like the training data?</h2>
+  <p>Every request sent to the API is logged. This check compares the most recent logged requests (up to 500) with the readings the model learned from. If they look very different, for example after a run of much hotter weather, predictions may become less reliable.</p>
+  <p class="small">The sliders above only preview a prediction. They are not logged.</p>
+  <button class="btn" id="check">Check recent requests</button>
+  <div id="drift-out" aria-live="polite"></div>
+</section>
+
+<footer><a href="/docs">API documentation</a></footer>
+</main>
+
+<script>
+const FIELDS = [
+  {key:"AT", label:"Air temperature", unit:"°C", limits:[-50,60], hint:"Hotter air goes with lower output. This is the strongest pattern in the data."},
+  {key:"V", label:"Exhaust vacuum", unit:"cm Hg", limits:[0,150], hint:"Higher vacuum goes with lower output, another strong pattern."},
+  {key:"AP", label:"Air pressure", unit:"millibar", limits:[800,1100], hint:"Higher pressure tends to go with higher output, a weaker link."},
+  {key:"RH", label:"Relative humidity", unit:"%", limits:[0,105], hint:"Higher humidity tends to go with higher output, a weaker link."}
+];
+const $ = (id) => document.getElementById(id);
+const state = {};
+let ranges = null, seq = 0, timer = null;
+
+function el(tag, props, ...kids) {
+  const n = Object.assign(document.createElement(tag), props || {});
+  kids.forEach((k) => n.append(k));
+  return n;
+}
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+function buildFields() {
+  const host = $("fields");
+  FIELDS.forEach((f) => {
+    const r = ranges[f.key], pad = (r.max - r.min) * 0.25;
+    f.lo = Math.max(f.limits[0], Math.floor((r.min - pad) * 10) / 10);
+    f.hi = Math.min(f.limits[1], Math.ceil((r.max + pad) * 10) / 10);
+    f.range = el("input", {type:"range", min:f.lo, max:f.hi, step:0.1, ariaLabel:f.label + " slider"});
+    f.num = el("input", {type:"number", id:"num-" + f.key, min:f.limits[0], max:f.limits[1], step:0.1});
+    f.range.addEventListener("input", () => setValue(f.key, +f.range.value));
+    f.num.addEventListener("input", () => {
+      const v = parseFloat(f.num.value);
+      if (!Number.isNaN(v)) setValue(f.key, clamp(v, f.limits[0], f.limits[1]), true);
+    });
+    host.append(el("div", {className:"field"},
+      el("div", {className:"field-head"}, el("label", {htmlFor:"num-" + f.key, textContent:f.label}), el("span", {className:"unit", textContent:f.unit})),
+      el("div", {className:"row"}, f.range, f.num),
+      el("p", {className:"hint", textContent:f.hint}),
+      el("p", {className:"train", textContent:"Training data: " + r.min.toFixed(1) + " to " + r.max.toFixed(1)})));
+  });
+  ranges.examples.forEach((ex) => {
+    const b = el("button", {type:"button", className:"chip", textContent:ex.label});
+    b.addEventListener("click", () => { FIELDS.forEach((f) => setValue(f.key, ex[f.key], false, true)); schedule(); });
+    $("examples").append(b);
+  });
+  $("examples").prepend(el("span", {textContent:"Load a real reading from the training data:"}));
+}
+
+function setValue(key, v, fromNumber, skipSchedule) {
+  const f = FIELDS.find((x) => x.key === key);
+  state[key] = v;
+  f.range.value = v;
+  if (!fromNumber) f.num.value = v;
+  if (!skipSchedule) schedule();
+}
+
+function schedule() {
+  updateNote();
+  clearTimeout(timer);
+  timer = setTimeout(predict, 150);
+}
+
+function updateNote() {
+  const out = FIELDS.filter((f) => state[f.key] < ranges[f.key].min || state[f.key] > ranges[f.key].max).map((f) => f.label);
+  const note = $("note");
+  if (out.length) {
+    note.className = "note warn";
+    note.textContent = out.join(" and ") + (out.length > 1 ? " are" : " is") + " outside the range the model learned from. Treat this prediction with caution.";
+  } else {
+    note.className = "note ok";
+    note.textContent = "These conditions are within the range the model learned from.";
+  }
+}
+
+async function predict() {
+  const mine = ++seq;
+  try {
+    const res = await fetch("/predict?log=false", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(state)});
+    if (!res.ok) throw new Error(String(res.status));
+    const data = await res.json();
+    if (mine !== seq) return;
+    const v = data.predicted_power_MW;
+    $("pred").textContent = v.toFixed(1);
+    $("fill").style.width = clamp((v - 420) / 80, 0, 1) * 100 + "%";
+  } catch (e) {
+    if (mine !== seq) return;
+    $("pred").textContent = "–";
+    $("fill").style.width = "0";
+    $("note").className = "note warn";
+    $("note").textContent = "The service could not give a prediction. Check that it is running and that the values are allowed.";
+  }
+}
+
+async function checkDrift() {
+  const out = $("drift-out"), btn = $("check");
+  btn.disabled = true;
+  out.textContent = "Checking…";
+  try {
+    const res = await fetch("/drift");
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    out.textContent = "";
+    if (d.status === "not_enough_data") {
+      out.append(el("p", {textContent:"Only " + d.logged_requests + " requests have been logged so far, and the check needs at least " + d.needed + ". Send more requests to the API (for example with simulate_traffic.py) and check again."}));
+      return;
+    }
+    const names = {};
+    FIELDS.forEach((f) => { names[f.key] = f.label; });
+    const diff = Object.keys(d.columns).filter((k) => d.columns[k].drift).map((k) => names[k]);
+    out.append(el("p", {textContent: diff.length
+      ? "The last " + d.logged_requests + " requests look different from the training data for: " + diff.join(", ") + ". Predictions may be less reliable. This does not mean they are wrong."
+      : "No change detected across the last " + d.logged_requests + " logged requests."}));
+    const tbody = el("tbody");
+    Object.keys(d.columns).forEach((k) => {
+      const c = d.columns[k];
+      tbody.append(el("tr", {}, el("td", {textContent:names[k]}), el("td", {className:c.drift ? "diff" : "", textContent:c.drift ? "Looks different" : "Looks the same"})));
+    });
+    out.append(el("table", {}, el("thead", {}, el("tr", {}, el("th", {textContent:"Input"}), el("th", {textContent:"Result"}))), tbody));
+  } catch (e) {
+    out.textContent = "The check could not run. Make sure the service is running and try again.";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function start() {
+  try {
+    const res = await fetch("/ranges");
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    ranges = data.ranges;
+    ranges.examples = data.examples;
+    $("rows").textContent = data.training_rows.toLocaleString("en");
+    buildFields();
+    const typical = data.examples[1];
+    FIELDS.forEach((f) => setValue(f.key, typical[f.key], false, true));
+    schedule();
+  } catch (e) {
+    $("fields").textContent = "Could not load the model details. Make sure the service is running, then reload the page.";
+  }
+}
+$("check").addEventListener("click", checkDrift);
+start();
+</script>
+</body>
+</html>

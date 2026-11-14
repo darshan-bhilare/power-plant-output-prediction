@@ -2,6 +2,7 @@ import sqlite3
 import sys
 
 import pandas as pd
+from contextlib import closing
 from scipy.stats import ks_2samp
 
 FEATURES = ["AT", "V", "AP", "RH"]
@@ -30,7 +31,7 @@ def check_drift(train_df, new_df, alpha=0.05, min_rows=30):
 
 
 def load_requests(db_path="requests.db"):
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         return pd.read_sql_query("SELECT AT, V, AP, RH FROM requests", conn)
 
 

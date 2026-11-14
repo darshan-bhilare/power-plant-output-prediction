@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py drift.py preprocess.py ./
 COPY models/ models/
+COPY static/ static/
 
 ENV DB_PATH=/data/requests.db
 RUN mkdir -p /data
